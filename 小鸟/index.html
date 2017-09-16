@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <style>
+        #c {
+            border: 1px solid black;
+        }
+    </style>
+</head>
+<body>
+<canvas width="800" height="600" id="c"></canvas>
+
+<script src="./land.js"></script>
+<script src="./sky.js"></script>
+<script src="./bird.js"></script>
+<script src="./pipe.js"></script>
+
+<script>
+    //1. 获取canvas标签
+    var cas = document.querySelector("#c");
+    //2. 使用canvas标签获取绘图工具
+    var ctx = cas.getContext("2d");
+
+    function getRadian(angle){
+        return angle / 180 * Math.PI;
+    }
+
+
+    function loadImgs(srcArr, callback){
+        //设置一个计数器，每当有图片加载完成，就给这个计数器+1
+        var count = 0;
+        //声明一个对象，用来存储，创建出来的所有的图片对象！
+        var imgsObj = {};
+        //遍历用户传进来的数组，加载图片
+        for(var i = 0; i < srcArr.length; i ++){
+            var img = new Image();
+            //将图片对象以图片的名称作为属性名存储到 图片容器对象中
+            imgsObj[srcArr[i]] = img;
+            img.src = "./imgs/" + srcArr[i] + ".png"
+            img.onload = function(){
+                count ++;
+                if(count == srcArr.length){
+                    //当count计数器的数量和数组的长度相同的时候
+                    //就意味着所有的图片都加载完毕了
+
+                    //当所有图片加载完毕，调用用户想要执行的函数
+                    //并且将已经存储好的所有的图片的对象，作为实参传递给用户的函数
+                    callback(imgsObj);
+                }
+            }
+        }
+    }
+
+
+
+    //1. 调用函数加载图片，注册完成事件
+    loadImgs(["birds", "sky", "land", "pipe1", "pipe2"], function(imgsObj) {
+
+        //用来获取对应的图片
+        var birdImg = imgsObj["birds"];
+        var skyImg = imgsObj["sky"];
+        var landImg = imgsObj["land"];
+        var pipeTopImg = imgsObj["pipe2"];
+        var pipeBottomImg = imgsObj["pipe1"];
+
+ 
+        //声明一个数组，用来保存所有需要被绘制的对象
+        //在每次帧动画绘制的时候，会挨个调用这个数组中对象的draw方法
+        var roles = [];
+        //创建天空对象
+        for(var i = 0; i < 2; i++){
+            roles.push(new Sky({
+                x: i * skyImg.width, 
+                y: 0,
+                img: skyImg,
+                ctx: ctx
+            }));
+        }
+
+        //创建管道对象
+        for(var i = 0; i < 6; i++){
+            roles.push(new Pipe({
+                x: i * pipeTopImg.width * 3 + 300,
+                imgTop: pipeTopImg,
+                imgBottom: pipeBottomImg,
+                ctx: ctx
+            }))
+        }
+        
+        //创建陆地对象
+        for(var i = 0; i < 4; i ++){
+            roles.push(new Land({
+                x: i * landImg.width,
+                y: cas.height - landImg.height,
+                img: landImg,
+                ctx: ctx
+            }));
+        }
+
+        //创建小鸟对象
+        var hero = new Bird({
+            x: 100, 
+            y: 100,
+            img: birdImg,
+            ctx: ctx,
+        });
+        roles.push(hero);
+       
+        //用来计算每一帧之间的时间间隔
+        var startTime = new Date();
+        var currentTime = new Date();
+
+        function render(){
+            //用来计算每一帧之间的时间间隔
+            currentTime = new Date();
+            var deltaTime = currentTime - startTime;
+            startTime = currentTime;
+            
+            //清空之前画布中的所有内容
+            ctx.clearRect(0, 0, cas.width, cas.height);
+
+            //碰撞检测中给管道绘制了路径
+            //将之前绘制好的6个管道的路径清空，因为下面绘制的时候，要画新的路径了
+            //如果不清空，那么所有的路径就会叠加在一起
+            ctx.beginPath();
+
+            //绘制所有需要被绘制的内容
+            for(var i = 0; i < roles.length; i++){
+                roles[i].draw(deltaTime);
+            }
+            
+            //条件判断中的内容为  小鸟是否飞出天际 或者小鸟是否落地， 小鸟是否撞到了管道！
+            var isAlive =  !(hero.y < 0 || hero.y  + hero.height> cas.height - landImg.height || ctx.isPointInPath(hero.x + hero.width /2, hero.y + hero.height /2));
+            
+            //如果小鸟没有出现飞出天际落地撞管道 那么游戏就继续
+            if(isAlive){
+                requestAnimationFrame(render);
+            }else{
+                alert("Game Over")
+            }
+        }
+        render();
+
+        cas.onclick = function () {
+            //让小鸟向上飞
+            hero.speed = -0.3;
+        }
+    })
+
+
+    
+</script>
+</body>
+</html>
